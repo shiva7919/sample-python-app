@@ -38,22 +38,19 @@ jobs:
     name: Deploy to EC2 via SSH
     runs-on: ubuntu-latest
     needs: build-and-push
-    # NOTE: removed job-level `if:` because secrets can't be referenced here
     steps:
 
       - name: Install ssh client
         run: sudo apt-get update && sudo apt-get install -y openssh-client
 
       - name: Start ssh-agent and add key
-        # Only run this step if SSH secrets are present
-        if: ${{ secrets.SSH_KEY != '' && secrets.SSH_HOST != '' && secrets.SSH_USER != '' }}
+        if: ${{ secrets.SSH_KEY && secrets.SSH_HOST && secrets.SSH_USER }}
         uses: webfactory/ssh-agent@v0.8.1
         with:
           ssh-private-key: ${{ secrets.SSH_KEY }}
 
       - name: Pull image & run on server
-        # Only run the SSH deploy if SSH secrets are present
-        if: ${{ secrets.SSH_KEY != '' && secrets.SSH_HOST != '' && secrets.SSH_USER != '' }}
+        if: ${{ secrets.SSH_KEY && secrets.SSH_HOST && secrets.SSH_USER }}
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
             set -e
@@ -66,7 +63,7 @@ jobs:
             echo "Deployed."
           EOF
 
-      - name: Notify missing SSH secrets
-        if: ${{ secrets.SSH_KEY == '' || secrets.SSH_HOST == '' || secrets.SSH_USER == '' }}
+      - name: SSH deploy skipped message
+        if: ${{ !secrets.SSH_KEY || !secrets.SSH_HOST || !secrets.SSH_USER }}
         run: |
-          echo "SSH deploy skipped because one or more SSH secrets (SSH_KEY, SSH_HOST, SSH_USER) are not set."
+          echo "SSH deploy skipped — missing one or more secrets: SSH_KEY, SSH_HOST, SSH_USER"
