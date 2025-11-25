@@ -7,5 +7,5 @@ def hello():
     return "hi from shiva .."
 
 if __name__ == "__main__":
-    # Only used when running locally (not in Docker with gunicorn)
+    # used for local dev; Docker image runs gunicorn
     app.run(host="0.0.0.0", port=8000)
