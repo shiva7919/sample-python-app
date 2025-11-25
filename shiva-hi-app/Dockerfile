@@ -1,31 +1,29 @@
-# Stage 1: build stage - install dependencies
-FROM python:3.11-slim as builder
+# Stage 1: builder - create virtualenv and install deps
+FROM python:3.11-slim AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Install pip wheel build deps (if needed) and OS packages needed for some packages
+# Install build deps only for building wheels if needed
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
  && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install into a target directory (virtualenv-style)
+# Copy requirements and create virtualenv
 COPY requirements.txt .
-# Create a place for site-packages
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Upgrade pip and install packages into venv
 RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy app source
 COPY app.py .
 
-# Stage 2: runtime stage - small image with only runtime env + app
-FROM python:3.11-slim as runtime
+# Stage 2: runtime - small image with only venv and app
+FROM python:3.11-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -33,14 +31,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Minimal runtime OS packages (if required)
+# Minimal runtime packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 
-# Copy venv from builder
+# Copy venv and app from builder
 COPY --from=builder /opt/venv /opt/venv
-# Copy application
 COPY --from=builder /app/app.py /app/app.py
 
 EXPOSE 8000
