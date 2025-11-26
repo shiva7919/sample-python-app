@@ -43,14 +43,24 @@ jobs:
       - name: Install ssh client
         run: sudo apt-get update && sudo apt-get install -y openssh-client
 
+      - name: Check deploy secrets
+        id: check
+        run: |
+          # Check that required secrets are present (non-empty)
+          if [ -n "${{ secrets.SSH_KEY }}" ] && [ -n "${{ secrets.SSH_HOST }}" ] && [ -n "${{ secrets.SSH_USER }}" ]; then
+            echo "do_deploy=true" >> $GITHUB_OUTPUT
+          else
+            echo "do_deploy=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Start ssh-agent and add key
-        if: ${{ secrets.SSH_KEY && secrets.SSH_HOST && secrets.SSH_USER }}
+        if: steps.check.outputs.do_deploy == 'true'
         uses: webfactory/ssh-agent@v0.8.1
         with:
           ssh-private-key: ${{ secrets.SSH_KEY }}
 
       - name: Pull image & run on server
-        if: ${{ secrets.SSH_KEY && secrets.SSH_HOST && secrets.SSH_USER }}
+        if: steps.check.outputs.do_deploy == 'true'
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
             set -e
@@ -64,6 +74,6 @@ jobs:
           EOF
 
       - name: SSH deploy skipped message
-        if: ${{ !secrets.SSH_KEY || !secrets.SSH_HOST || !secrets.SSH_USER }}
+        if: steps.check.outputs.do_deploy == 'false'
         run: |
           echo "SSH deploy skipped — missing one or more secrets: SSH_KEY, SSH_HOST, SSH_USER"
