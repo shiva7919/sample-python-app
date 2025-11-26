@@ -1,2 +1,2 @@
 # sample-python-app
-pract
+practi
